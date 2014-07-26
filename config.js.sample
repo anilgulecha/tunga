@@ -1,0 +1,22 @@
+/**
+Rename this file to "config.js" and place in the root of the application directory.
+Any properties you add to the "dev" or "prod" will override the "default" launch configuration.
+**/
+var config={
+    "default":{
+        "db":{
+            "hostname": "127.0.0.1",
+            "username": "",
+            "password": "password"
+        }
+        "secretkey": "yourcookiesecretgoeshere"
+    },
+    "dev":{
+        "port": 8081
+    },
+    "prod":{
+        "port": 8080
+    }
+};
+
+module.exports = config;

@@ -1,0 +1,21 @@
+{
+  "name": "tunga",
+  "description": "A TCP and HTTPS/HTTP forwarder.",
+  "version": "1.0.0",
+  "author": "Anil Gulecha <anil@hackerrank.com>",
+  "dependencies": {
+    "coffee-script"   : "~1.7.1",
+    "sqlite3"         : "~2.2.4",
+    "express"         : "~4.6.1",
+    "static-favicon"  : "~1.0.0",
+    "morgan"          : "~1.0.0",
+    "cookie-parser"   : "~1.0.1",
+    "body-parser"     : "~1.0.0",
+    "debug"           : "~0.7.4",
+    "jade"            : "~1.3.0",
+    "sequelize"       : "~1.7.9",
+    "lodash"          : "~2.4.1",
+    "http-proxy"      : "~1.1.6",
+    "tcp-proxy"       : "~0.0.1"
+  }
+}
