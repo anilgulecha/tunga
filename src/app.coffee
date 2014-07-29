@@ -31,7 +31,7 @@ app.all "*" , (req, res, next) ->
   else
     next()
 
-app.use '/', routes
+app.use '/', routes.router
 
 credentials =
   key: fs.readFileSync(config.privateKey, 'utf8')
@@ -41,3 +41,5 @@ httpsServer = https.createServer credentials, app
 
 server = httpsServer.listen config.port, ->
   console.log "Application listening for requests on port #{config.port} "
+
+routes.restoreState()

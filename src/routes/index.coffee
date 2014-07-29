@@ -13,7 +13,17 @@ router = express.Router()
 httpsProxies = {}
 tcpProxies = {}
 
-setupHttpsProxy = (id, inport, outip, outport) ->
+restoreState = ->
+  console.log "restoreing"
+
+setupHttpsProxy = (endPoint) ->
+  id = endPoint.id
+  inport = endPoint.incomingPort
+  outip = endPoint.outgoingIP
+  outport = endPoint.outgoingPort
+  db.Events.create
+    endpointId: endPoint.id
+    eventId: consts.EVENT_HTTP_PROXY_SETUP
   console.log "Creating HTTPS:HTTP proxy #{inport} -> #{outip}:#{outport}"
   server = httpProxy.createServer
     target:
@@ -25,29 +35,79 @@ setupHttpsProxy = (id, inport, outip, outport) ->
   server.listen inport
   httpsProxies[id] = {}
   httpsProxies[id].server = server
-  server.on "error", (err, req, res) ->
+  server.on "error", (err, req, res) =>
+    db.Events.create
+      endpointId: endPoint.id
+      eventId: consts.EVENT_PROXY_ERROR
     closeHttpProxy(id)
 
-closeHttpProxy: (id) ->
-  if httpsProxies[id]
-    httpsProxies[id].server._server.close()
+closeHttpProxy = (epid) ->
+  if httpsProxies[epid]
+    console.log "Stopping http proxy, and closing existing connections"
+    httpsProxies[epid].server._server.close()
+    db.EndPoints.find
+      where:
+        id: epid
+    .success (r) ->
+      db.Events.create
+        endpointId: r.id
+        eventId: consts.EVENT_HTTP_PROXY_CLOSED
+    delete httpsProxies[epid]
 
-setupTcpProxy = (id, inport, outip, outport) ->
+setupTcpProxy = (endPoint) ->
+  id = endPoint.id
+  inport = endPoint.incomingPort
+  outip = endPoint.outgoingIP
+  outport = endPoint.outgoingPort
+  db.Events.create
+    endpointId: endPoint.id
+    eventId: consts.EVENT_TCP_PROXY_SETUP
   console.log "Creating TCP proxy #{inport} -> #{outip}:#{outport}"
   server = tcpProxy.createServer
     target:
       host: outip
       port: outport
-  server.listen inport
+
   tcpProxies[id] ={}
   tcpProxies[id].server = server
+  tcpProxies[id].sockets = []
+
   server.on "error", (err, req, res) ->
     server.close()
-  setTimeout ->
-    console.log "closing!"
-    server.close()
-  , 30000
+    db.Events.create
+      endpointId: endPoint.id
+      eventId: consts.EVENT_PROXY_ERROR
 
+  server.on "connection", (socket) ->
+    tcpProxies[id].sockets.push(socket)
+    db.Events.create
+      endpointId: endPoint.id
+      eventId: consts.EVENT_TCP_USER_CONNECT
+    socket.on "close", ->
+      tcpProxies[id].sockets.splice(tcpProxies[id].sockets.indexOf(socket), 1)
+      db.Events.create
+        endpointId: endPoint.id
+        eventId: consts.EVENT_TCP_USER_DISCONNECT
+
+  server.listen inport
+
+closeTcpProxy = (epid) ->
+  if tcpProxies[epid]
+    console.log "Stopping tcp proxy, and closing existing connections"
+    if tcpProxies[epid].server
+      tcpProxies[epid].server.close()
+    if tcpProxies[epid].sockets
+      for sock in tcpProxies[epid].sockets
+        sock.end()
+        #sock.destroy()
+    db.EndPoints.find
+      where:
+        id: epid
+    .success (r) ->
+      db.Events.create
+        endpointId: epid
+        eventId: consts.EVENT_TCP_PROXY_CLOSED
+    delete tcpProxies[epid]
 
 router.get '/status', (req, res) ->
   res.status(200).send
@@ -81,9 +141,11 @@ router.post '/endpoints', (req, res) ->
           incomingPort: port
         ).success((r) ->
           if r.forwardType == consts.HTTPS_FORWARD
-            setupHttpsProxy r.id, r.incomingPort, r.outgoingIP, r.outgoingPort
+            #setupHttpsProxy r.id, r.incomingPort, r.outgoingIP, r.outgoingPort
+            setupHttpsProxy r
           else
-            setupTcpProxy r.id, r.incomingPort, r.outgoingIP, r.outgoingPort
+            #setupTcpProxy r.id, r.incomingPort, r.outgoingIP, r.outgoingPort
+            setupTcpProxy r
 
           res.status(200).json
             model: r
@@ -119,10 +181,18 @@ router.put '/endpoints/:id', (req, res) ->
       id: req.params.id
   .success (r) ->
     if r
+      if r.forwardType == consts.HTTPS_FORWARD
+        closeHttpProxy r.id
+      else
+        closeTcpProxy r.id
       res.status(200).json
-        model: r
+        message: "success"
     else
       res.status(400).json
         error: "Unable to find endpoint."
+  .error (r) ->
+    res.status(400).json
+      error: "Unable to find endpoint"
 
-module.exports = router
+module.exports.router = router
+module.exports.restoreState = restoreState

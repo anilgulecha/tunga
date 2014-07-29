@@ -13,11 +13,10 @@ sequelize = new Sequelize config.database, config.username, config.password, con
 db = {}
 
 EndPoints = sequelize.define "endpoints",
-  id: {
+  id:
     type: Sequelize.INTEGER
     autoIncrement: true
     primaryKey: true
-  }
   createdAt: Sequelize.DATE
   updatedAt: Sequelize.DATE
   state: Sequelize.INTEGER
@@ -48,7 +47,28 @@ EndPoints = sequelize.define "endpoints",
         callback null
       )
 
+Events = sequelize.define "events",
+  id:
+    type: Sequelize.INTEGER
+    autoIncrement: true
+    primaryKey: true
+  endpointId  : Sequelize.INTEGER
+  eventId     : Sequelize.INTEGER
+  timestamp   :
+    type: Sequelize.DATE
+    defaultValue: Sequelize.NOW
+  message     :
+    type: Sequelize.STRING
+    defaultValue: ""
+,
+  timestamps: false
+  hooks:
+    beforeCreate: (evnt, callback) ->
+      console.log "Event for #{evnt.endpointId}"
+      callback()
+
 db.EndPoints = EndPoints
+db.Events    = Events
 
 Object.keys(db).forEach (modelName) ->
   db[modelName].associate db  if "associate" of db[modelName]
