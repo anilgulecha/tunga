@@ -10,7 +10,12 @@ https           = require 'https'
 
 routes = require './routes/index'
 
-config = require(__dirname + '/../config/config.json')[process.env.NODE_ENV || "development"]
+
+mode = process.env.NODE_ENV || "development"
+
+console.log "------------------\n\n\nStarting in mode:  #{mode}\n\n\n-------------------\n"
+
+config = require(__dirname + '/../config/config.json')[mode]
 
 app = express()
 

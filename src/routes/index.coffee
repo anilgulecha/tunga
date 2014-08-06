@@ -6,6 +6,7 @@ fs            = require 'fs'
 http          = require 'http'
 httpProxy     = require 'http-proxy'
 tcpProxy      = require 'tcp-proxy'
+clc           = require 'cli-color'
 config        = require(__dirname + '/../../config/config.json')[process.env.NODE_ENV || "development"]
 
 router = express.Router()
@@ -13,18 +14,50 @@ router = express.Router()
 httpsProxies = {}
 tcpProxies = {}
 
+#
+# Called on server start -- so any active connections can be started.
+#
+
 restoreState = ->
-  console.log "restoreing"
+  console.log clc.blue("Restoring any old connections.")
+  db.EndPoints.findAll
+    where:
+      state: consts.ACTIVE
+  .success (rows) ->
+    for row in rows
+      setupProxy row
+
+#
+# wrapper function -- inturn call specific proxy function.
+#
+
+setupProxy = (endPoint) ->
+  if endPoint.forwardType == consts.HTTPS_FORWARD
+    setupHttpsProxy endPoint
+  else
+    setupTcpProxy endPoint
+
+closeProxy = (endPoint) ->
+  if endPoint.forwardType == consts.HTTPS_FORWARD
+    closeHttpProxy endPoint.id
+  else
+    closeTcpProxy endPoint.id
+
+
+#
+# Actual proxy setup functions follow
+#
+#
 
 setupHttpsProxy = (endPoint) ->
   id = endPoint.id
   inport = endPoint.incomingPort
   outip = endPoint.outgoingIP
   outport = endPoint.outgoingPort
-  db.Events.create
-    endpointId: endPoint.id
-    eventId: consts.EVENT_HTTP_PROXY_SETUP
-  console.log "Creating HTTPS:HTTP proxy #{inport} -> #{outip}:#{outport}"
+
+  endPoint.makeEvent consts.EVENT_HTTP_PROXY_SETUP
+
+  console.log clc.blue("Creating HTTPS:HTTP proxy (id: #{id}) #{inport} -> #{outip}:#{outport}")
   server = httpProxy.createServer
     target:
       host: outip
@@ -33,25 +66,25 @@ setupHttpsProxy = (endPoint) ->
       key: fs.readFileSync config.privateKey, 'utf8'
       cert: fs.readFileSync config.certificate, 'utf8'
   server.listen inport
+  endPoint.state = consts.ACTIVE
+  endPoint.save()
   httpsProxies[id] = {}
   httpsProxies[id].server = server
   server.on "error", (err, req, res) =>
-    db.Events.create
-      endpointId: endPoint.id
-      eventId: consts.EVENT_PROXY_ERROR
+    endPoint.makeEvent consts.EVENT_PROXY_ERROR
     closeHttpProxy(id)
 
 closeHttpProxy = (epid) ->
   if httpsProxies[epid]
-    console.log "Stopping http proxy, and closing existing connections"
+    console.log clc.blue("Stopping http proxy id #{epid}")
     httpsProxies[epid].server._server.close()
     db.EndPoints.find
       where:
         id: epid
     .success (r) ->
-      db.Events.create
-        endpointId: r.id
-        eventId: consts.EVENT_HTTP_PROXY_CLOSED
+      r.makeEvent consts.EVENT_HTTP_PROXY_CLOSED
+      r.state = consts.TERMINATED
+      r.save()
     delete httpsProxies[epid]
 
 setupTcpProxy = (endPoint) ->
@@ -59,10 +92,8 @@ setupTcpProxy = (endPoint) ->
   inport = endPoint.incomingPort
   outip = endPoint.outgoingIP
   outport = endPoint.outgoingPort
-  db.Events.create
-    endpointId: endPoint.id
-    eventId: consts.EVENT_TCP_PROXY_SETUP
-  console.log "Creating TCP proxy #{inport} -> #{outip}:#{outport}"
+  endPoint.makeEvent consts.EVENT_TCP_PROXY_SETUP
+  console.log clc.blue("Creating TCP proxy (id: #{id}) #{inport} -> #{outip}:#{outport}")
   server = tcpProxy.createServer
     target:
       host: outip
@@ -74,26 +105,22 @@ setupTcpProxy = (endPoint) ->
 
   server.on "error", (err, req, res) ->
     server.close()
-    db.Events.create
-      endpointId: endPoint.id
-      eventId: consts.EVENT_PROXY_ERROR
+    endPoint.makeEvent consts.EVENT_PROXY_ERROR
 
   server.on "connection", (socket) ->
     tcpProxies[id].sockets.push(socket)
-    db.Events.create
-      endpointId: endPoint.id
-      eventId: consts.EVENT_TCP_USER_CONNECT
+    endPoint.makeEvent consts.EVENT_TCP_USER_CONNECT
     socket.on "close", ->
       tcpProxies[id].sockets.splice(tcpProxies[id].sockets.indexOf(socket), 1)
-      db.Events.create
-        endpointId: endPoint.id
-        eventId: consts.EVENT_TCP_USER_DISCONNECT
+      endPoint.makeEvent consts.EVENT_TCP_USER_DISCONNECT
 
   server.listen inport
+  endPoint.state = consts.ACTIVE
+  endPoint.save()
 
 closeTcpProxy = (epid) ->
   if tcpProxies[epid]
-    console.log "Stopping tcp proxy, and closing existing connections"
+    console.log clc.blue("Stopping tcp proxy id #{epid}")
     if tcpProxies[epid].server
       tcpProxies[epid].server.close()
     if tcpProxies[epid].sockets
@@ -104,23 +131,38 @@ closeTcpProxy = (epid) ->
       where:
         id: epid
     .success (r) ->
-      db.Events.create
-        endpointId: epid
-        eventId: consts.EVENT_TCP_PROXY_CLOSED
+      r.makeEvent consts.EVENT_TCP_PROXY_CLOSED
+      r.state = consts.TERMINATED
+      r.save()
     delete tcpProxies[epid]
+
+#
+# Route handlers
+#
 
 router.get '/status', (req, res) ->
   res.status(200).send
     "status" : "ok"
 
+# get all endpoint
 router.get '/endpoints', (req, res) ->
-  db.EndPoints.findAll(
-      where:
-        state: [consts.ACTIVE, consts.UNINITIALIZED]
-  ).success (rows) ->
+  if req.query.terminated and req.query.terminated == "true"
+    allowedStates = [consts.ACTIVE, consts.UNINITIALIZED, consts.TERMINATED]
+  else
+    allowedStates = [consts.ACTIVE, consts.UNINITIALIZED]
+
+  limt = req.query.limit || 10
+  offst = req.query.offset || 0
+  db.EndPoints.findAll
+    where:
+      state: allowedStates
+    offset: offst
+    limit: limt
+  .success (rows) ->
     res.status(200).json
       models: rows
 
+# create an endpoint
 router.post '/endpoints', (req, res) ->
   if !req.body.outip or
       !req.body.outport or
@@ -140,13 +182,7 @@ router.post '/endpoints', (req, res) ->
           outgoingPort: req.body.outport
           incomingPort: port
         ).success((r) ->
-          if r.forwardType == consts.HTTPS_FORWARD
-            #setupHttpsProxy r.id, r.incomingPort, r.outgoingIP, r.outgoingPort
-            setupHttpsProxy r
-          else
-            #setupTcpProxy r.id, r.incomingPort, r.outgoingIP, r.outgoingPort
-            setupTcpProxy r
-
+          setupProxy r
           res.status(200).json
             model: r
         ).error( (r) ->
@@ -155,6 +191,7 @@ router.post '/endpoints', (req, res) ->
             data: r
         )
 
+# get an endpoint
 router.get '/endpoints/:id', (req, res) ->
   db.EndPoints.find
     where:
@@ -181,10 +218,7 @@ router.put '/endpoints/:id', (req, res) ->
       id: req.params.id
   .success (r) ->
     if r
-      if r.forwardType == consts.HTTPS_FORWARD
-        closeHttpProxy r.id
-      else
-        closeTcpProxy r.id
+      closeProxy r
       res.status(200).json
         message: "success"
     else

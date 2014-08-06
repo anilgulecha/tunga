@@ -16,6 +16,7 @@
     "sequelize"       : "~1.7.9",
     "lodash"          : "~2.4.1",
     "http-proxy"      : "~1.1.6",
-    "tcp-proxy"       : "~0.0.1"
+    "tcp-proxy"       : "~0.0.1",
+    "cli-color"       : "~0.3.2"
   }
 }

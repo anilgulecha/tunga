@@ -12,6 +12,9 @@ sequelize = new Sequelize config.database, config.username, config.password, con
 
 db = {}
 
+# maximum number of events for an endpoint to record.
+MAX_EVENTS = 30
+
 EndPoints = sequelize.define "endpoints",
   id:
     type: Sequelize.INTEGER
@@ -47,6 +50,10 @@ EndPoints = sequelize.define "endpoints",
         callback null
       )
 
+  instanceMethods:
+    makeEvent: (evid) ->
+      Events.makeEvent @id, evid
+
 Events = sequelize.define "events",
   id:
     type: Sequelize.INTEGER
@@ -64,8 +71,21 @@ Events = sequelize.define "events",
   timestamps: false
   hooks:
     beforeCreate: (evnt, callback) ->
-      console.log "Event for #{evnt.endpointId}"
-      callback()
+      @count
+        where:
+          endpointId: evnt.endpointId
+      .success (c) ->
+        if c < MAX_EVENTS
+          callback()
+        else
+          callback("max events reached for endpoint #{evnt.endpointId}")
+  classMethods:
+    makeEvent: (epid, evid) ->
+      @create
+        endpointId: epid
+        eventId: evid
+      .error (err) ->
+        console.log " > Event error: #{err}"
 
 db.EndPoints = EndPoints
 db.Events    = Events
