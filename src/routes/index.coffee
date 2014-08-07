@@ -7,6 +7,7 @@ http          = require 'http'
 httpProxy     = require 'http-proxy'
 tcpProxy      = require 'tcp-proxy'
 clc           = require 'cli-color'
+async         = require 'async'
 config        = require(__dirname + '/../../config/config.json')[process.env.NODE_ENV || "development"]
 
 router = express.Router()
@@ -141,8 +142,53 @@ closeTcpProxy = (epid) ->
 #
 
 router.get '/status', (req, res) ->
-  res.status(200).send
-    "status" : "ok"
+  async.parallel [
+    (c) ->
+      db.EndPoints.count
+        where:
+          state: consts.ACTIVE
+      .success (r) ->
+        c(null,r)
+      .error (e) ->
+        c(e)
+    ,
+    (c) ->
+      db.EndPoints.count
+        where:
+          state: consts.UNINITIALIZED
+      .success (r) ->
+        c(null,r)
+      .error (e) ->
+        c(e)
+    ,
+    (c) ->
+      db.EndPoints.count
+        where:
+          state: consts.TERMINATED
+      .success (r) ->
+        c(null,r)
+      .error (e) ->
+        c(e)
+    ,
+    (c) ->
+      db.Events.count()
+      .success (r) ->
+        c(null,r)
+      .error (e) ->
+        c(e)
+    ,
+    (c) ->
+      fs.stat config.storage, (e,s) ->
+        c(e, s)
+  ], (err,r) ->
+    res.status(200).json
+      endpoints:
+        active: r[0]
+        uninitialized: r[1]
+        terminated: r[2]
+      eventsCount: r[3]
+      db_size: "#{(r[4].size / 1024)} kb"
+      err: err
 
 # get all endpoint
 router.get '/endpoints', (req, res) ->
