@@ -31,4 +31,7 @@ When developing you can create and destroy endpoints with:
 
 Parallely run the following in a terminal to keep track of open ports/connections.
  while true; do clear;date;pid=`ps -Ao "%p,%a" | grep "node bootstrap" | grep -v grep | cut -d"," -f1`; lsof -i -n | grep $pid;sleep 2;done
- 
+
+Credits:
+
+ * Tunnel icon by OCHA (from flaticons) 

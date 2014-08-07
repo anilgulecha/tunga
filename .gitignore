@@ -18,3 +18,5 @@ node_modules
 *.bu
 config.js
 config/config.json
+
+db.file.sqlite

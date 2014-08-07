@@ -1,5 +1,5 @@
 # Load Libraries
-express         = require "express"
+express         = require 'express'
 path            = require 'path'
 favicon         = require 'static-favicon'
 logger          = require 'morgan'
@@ -22,7 +22,7 @@ app = express()
 #app.set('views', path.join(__dirname, 'views'));
 #app.set('view engine', 'jade');
 
-#app.use favicon()
+app.use favicon(__dirname + '/../public/tunnel.ico')
 app.use logger('dev')
 app.use bodyParser.json()
 app.use bodyParser.urlencoded()
