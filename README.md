@@ -5,16 +5,23 @@ All state is saved in a local sqlite database.
 
 Devs:
 
+# First run
 Install node, npm
 npm install.
 
-# to run migrations.
+# now create a config file as needed.
+cp config/config.json.sample config/config.json
+
+#  to run migrations.
 node_modules/.bin/sequelize -m
 
+
+# Regular runs
 # to start server.
 NODE_ENV=development ./start.sh
 
 or
+
 NODE_ENV=production ./start.sh
 
 When developing you can create and destroy endpoints with:
