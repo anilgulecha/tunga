@@ -9,6 +9,7 @@ tcpProxy      = require 'tcp-proxy'
 clc           = require 'cli-color'
 async         = require 'async'
 _             = require 'lodash'
+version       = require("#{__dirname}/../../package.json")["version"]
 
 env           = process.env.NODE_ENV or "development"
 _c            = require("#{__dirname}/../../config/config.json")
@@ -200,6 +201,7 @@ router.get '/status', (req, res) ->
         active: r[0]
         uninitialized: r[1]
         terminated: r[2]
+      version: version
       eventsCount: r[3]
       db_size: "#{(r[4].size / 1024)} kb"
       err: err
