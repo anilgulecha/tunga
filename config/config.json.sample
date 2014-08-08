@@ -4,17 +4,17 @@
     "privateKey" : "key.pem",
     "certificate" : "cert.pem",
     "API_KEY" : "abc",
-    "username": "root",
-    "password": null,
-    "database": "tunga_development",
     "dialect" : "sqlite",
-    "storage" : "db.file.sqlite"
+    "storage" : "db.file.sqlite",
+    "raygun"  : null
   },
   "production": {
-    "username": "root",
-    "password": null,
-    "database": "tunga_production",
-    "host": "127.0.0.1",
-    "dialect": "sqlite"
+    "port": 8443,
+    "privateKey" : "key.pem",
+    "certificate" : "cert.pem",
+    "API_KEY" : "randomapikey",
+    "dialect" : "sqlite",
+    "storage" : "db.prod.sqlite",
+    "raygun"  : "randomkey"
   }
 }
