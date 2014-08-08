@@ -127,7 +127,8 @@ setupTcpProxy = (endPoint) ->
     tcpProxies[id].sockets.push(socket)
     endPoint.makeEvent consts.EVENT_TCP_USER_CONNECT
     socket.on "close", ->
-      tcpProxies[id].sockets.splice(tcpProxies[id].sockets.indexOf(socket), 1)
+      if tcpProxies[id].sockets
+        tcpProxies[id].sockets.splice(tcpProxies[id].sockets.indexOf(socket), 1)
       endPoint.makeEvent consts.EVENT_TCP_USER_DISCONNECT
 
   server.listen inport
