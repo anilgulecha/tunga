@@ -7,5 +7,6 @@ supervisor >/dev/null 2>&1 || { echo >&2 "Requires supervisor. Attempting to ins
 # Update npm
 npm install
 # Launch the application and pass thru any params passed in
-export NODE_ENV = $@
+[[ -z $@ ]] && echo "No mode provided, exiting.." && exit -1
+export NODE_ENV=$@
 supervisor -w .,src,migrations,config -e coffee -- bootstrap.js

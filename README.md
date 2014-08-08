@@ -18,11 +18,11 @@ node_modules/.bin/sequelize -m
 
 # Regular runs
 # to start server.
-NODE_ENV=development ./start.sh
+./start.sh development
 
 or
 
-NODE_ENV=production ./start.sh
+./start.sh production
 
 When developing you can create and destroy endpoints with:
  curl -k -X POST -H "X-API-KEY: abc" -d "outip=127.0.0.1" -d "outport=22" https://127.0.0.1:8443/endpoints

@@ -8,14 +8,19 @@ httpProxy     = require 'http-proxy'
 tcpProxy      = require 'tcp-proxy'
 clc           = require 'cli-color'
 async         = require 'async'
-config        = require(__dirname + '/../../config/config.json')[process.env.NODE_ENV || "development"]
+_             = require 'lodash'
+
+env           = process.env.NODE_ENV or "development"
+_c            = require("#{__dirname}/../../config/config.json")
+config        = _c[env]
 
 router = express.Router()
 
 httpsProxies = {}
 tcpProxies = {}
 
-#
+
+# HELPER FUNCTIONS.
 # Called on server start -- so any active connections can be started.
 #
 
@@ -27,6 +32,15 @@ restoreState = ->
   .success (rows) ->
     for row in rows
       setupProxy row
+
+# checks if there are open proxies
+
+openProxies = ->
+  if  _.isEmpty(httpsProxies) and _.isEmpty(tcpProxies)
+    return false
+  else
+    return true
+
 
 #
 # wrapper function -- inturn call specific proxy function.
@@ -190,6 +204,12 @@ router.get '/status', (req, res) ->
       db_size: "#{(r[4].size / 1024)} kb"
       err: err
 
+# a simple endpoint to throw errors.
+router.get "/throwerror", (req, res) ->
+  throw new Error ("api error")
+  res.status(200).json
+    message: "throwing error"
+
 # get all endpoint
 router.get '/endpoints', (req, res) ->
   if req.query.terminated and req.query.terminated == "true"
@@ -276,3 +296,4 @@ router.put '/endpoints/:id', (req, res) ->
 
 module.exports.router = router
 module.exports.restoreState = restoreState
+module.exports.openProxies = openProxies
