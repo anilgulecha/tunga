@@ -51,8 +51,8 @@ EndPoints = sequelize.define "endpoints",
       )
 
   instanceMethods:
-    makeEvent: (evid) ->
-      Events.makeEvent @id, evid
+    makeEvent: (evid, msg = "") ->
+      Events.makeEvent @id, evid, msg
 
 Events = sequelize.define "events",
   id:
@@ -80,10 +80,11 @@ Events = sequelize.define "events",
         else
           callback("max events reached for endpoint #{evnt.endpointId}")
   classMethods:
-    makeEvent: (epid, evid) ->
+    makeEvent: (epid, evid, msg = "") ->
       @create
         endpointId: epid
         eventId: evid
+        message: msg
       .error (err) ->
         console.log " > Event error: #{err}"
 

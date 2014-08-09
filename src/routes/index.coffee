@@ -87,7 +87,7 @@ setupHttpsProxy = (endPoint) ->
   httpsProxies[id] = {}
   httpsProxies[id].server = server
   server.on "error", (err, req, res) =>
-    endPoint.makeEvent consts.EVENT_PROXY_ERROR
+    endPoint.makeEvent consts.EVENT_PROXY_ERROR, err
     closeHttpProxy(id)
 
 closeHttpProxy = (epid) ->
