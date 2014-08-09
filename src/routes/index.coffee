@@ -88,7 +88,8 @@ setupHttpsProxy = (endPoint) ->
   httpsProxies[id].server = server
   server.on "error", (err, req, res) =>
     endPoint.makeEvent consts.EVENT_PROXY_ERROR, err
-    closeHttpProxy(id)
+    # no need to close a http connection on error.
+    # closeHttpProxy(id)
 
 closeHttpProxy = (epid) ->
   if httpsProxies[epid]
