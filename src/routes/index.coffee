@@ -267,8 +267,11 @@ router.get '/endpoints/:id', (req, res) ->
       id: req.params.id
   .success (r) ->
     if r
-      res.status(200).json
-        model: r
+      r.getEvents (ev)->
+        atts = r.dataValues
+        atts.events = ev
+        res.status(200).json
+          model: atts
     else
       res.status(400).json
         error: "Unable to find endpoint."

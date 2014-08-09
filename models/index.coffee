@@ -54,6 +54,15 @@ EndPoints = sequelize.define "endpoints",
     makeEvent: (evid, msg = "") ->
       Events.makeEvent @id, evid, msg
 
+    getEvents: (callback) ->
+      Events.findAll
+        where:
+          endpointId: @id
+      .success (evs) ->
+        callback evs
+      .error ->
+        callback []
+
 Events = sequelize.define "events",
   id:
     type: Sequelize.INTEGER
